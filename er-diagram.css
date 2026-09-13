@@ -1,0 +1,196 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #f4f5f8;
+  --panel: #ffffff;
+  --ink: #12212f;
+  --subtle: #5b6c7c;
+  --line: #234b7c;
+  --accent: #d9480f;
+  --muted-line: #7e8fa3;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at 15% 15%, #dbeafe 0%, transparent 30%),
+    radial-gradient(circle at 85% 10%, #ffe8cc 0%, transparent 26%),
+    var(--bg);
+  color: var(--ink);
+}
+
+.page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 28px 18px 38px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.8vw, 2.3rem);
+  letter-spacing: 0.02em;
+}
+
+.page-header p {
+  margin: 8px 0 0;
+  color: var(--subtle);
+  font-size: 1rem;
+}
+
+.diagram-wrap {
+  margin-top: 18px;
+  background: var(--panel);
+  border: 1px solid #d5dbe3;
+  border-radius: 16px;
+  padding: 14px;
+  overflow-x: auto;
+  box-shadow: 0 18px 42px rgba(35, 75, 124, 0.1);
+}
+
+.er-canvas {
+  width: 100%;
+  min-width: 1180px;
+  height: auto;
+}
+
+.entity rect {
+  fill: #f9fbff;
+  stroke: var(--line);
+  stroke-width: 2.4;
+}
+
+.entity line {
+  stroke: var(--line);
+  stroke-width: 1.8;
+}
+
+.entity text {
+  fill: var(--ink);
+  font-size: 18px;
+}
+
+.entity .entity-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.relation line {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.relation path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.relation text {
+  fill: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.relation .label {
+  fill: #9a3412;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.relation.secondary line {
+  stroke: var(--muted-line);
+  stroke-width: 2.4;
+  stroke-dasharray: 10 7;
+}
+
+.relation.secondary path {
+  stroke: var(--muted-line);
+  stroke-width: 2.4;
+  stroke-dasharray: 10 7;
+}
+
+.relation.secondary .label {
+  fill: #4b5f78;
+  font-size: 15px;
+}
+
+.relation.tertiary path {
+  stroke: #6b7280;
+  stroke-width: 2;
+  stroke-dasharray: 5 6;
+}
+
+.relation.tertiary .label {
+  fill: #4b5563;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#arrow path {
+  fill: var(--accent);
+}
+
+.relationship-node polygon {
+  fill: #fff8ee;
+  stroke: #b45309;
+  stroke-width: 2.1;
+}
+
+.relationship-node text {
+  fill: #8a3412;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.legend rect {
+  fill: #f8fbff;
+  stroke: #c8d5e3;
+  stroke-width: 1.8;
+}
+
+.legend text {
+  fill: #273c53;
+  font-size: 14px;
+}
+
+.legend .legend-title {
+  fill: #16324a;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.notes {
+  margin-top: 18px;
+  padding: 16px;
+  background: #ffffffcc;
+  border: 1px solid #d5dbe3;
+  border-radius: 14px;
+}
+
+.notes h2 {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+}
+
+.notes p {
+  margin: 0 0 8px;
+  line-height: 1.45;
+  color: #1d3146;
+}
+
+.notes p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 800px) {
+  .page {
+    padding: 20px 10px 24px;
+  }
+
+  .diagram-wrap {
+    padding: 10px;
+  }
+}

@@ -1,0 +1,243 @@
+Cartlane Store DBMS Theory Notes
+================================
+This document explains how the project uses DBMS concepts and how the system works in theory.
+
+Section 1: Database-Centric Nature of the Project
+-------------------------------------------------
+The project is designed around persistent data rather than temporary page state.
+A DBMS is used so business information survives server restarts and user sessions.
+The system treats products, users, carts, and orders as durable organizational assets.
+Persistence gives continuity, which is essential for commerce workflows.
+The database acts as the single source of truth for transactional facts.
+Application logic depends on structured retrieval and controlled updates.
+The store experience is therefore data-driven instead of hardcoded.
+The DBMS layer separates data management concerns from presentation concerns.
+This separation supports maintainability and conceptual clarity.
+The project demonstrates operational data management, not just static content serving.
+It reflects the principle that meaningful applications are built on stable data models.
+The database is therefore a foundational subsystem, not an optional add-on.
+
+Section 2: Core Entities and Their Roles
+----------------------------------------
+The product entity represents goods offered by the business.
+The user entity represents customer identities and credentials.
+The cart entity represents in-progress purchase intentions before checkout.
+The order entity represents completed commercial transactions.
+Each entity corresponds to a table in relational storage.
+Each table captures one major business concept with clear boundaries.
+Entity definitions allow the system to formalize business semantics.
+Products are descriptive and price-bearing reference records.
+Users are identity-bearing records tied to account behavior.
+Carts are mutable records reflecting short-term shopping activity.
+Orders are historical records that preserve final transaction states.
+Together these entities form a compact but complete commerce domain model.
+
+Section 3: Relational Modeling and Keys
+---------------------------------------
+Relational modeling organizes data into tables with attributes and identifiers.
+Primary keys provide unique identity for each row in each table.
+Surrogate integer keys simplify record referencing across relations.
+User related activity links logically through user identifiers.
+Cart records are mapped to users so ownership is explicit.
+Order records include user context to preserve accountability.
+This key based structure supports unambiguous joins and tracing.
+Relational design makes dependencies explicit instead of implicit.
+Reference patterns prevent ambiguity in multi-user environments.
+The schema demonstrates one-to-many style relationships in practical form.
+The model is normalized enough to avoid obvious duplication issues.
+Key design choices directly influence query simplicity and consistency.
+
+Section 4: Schema as a Formal Contract
+--------------------------------------
+A schema defines what data can exist and in what format.
+Type declarations constrain values to meaningful domains.
+Required fields communicate mandatory business facts.
+Uniqueness rules prevent duplicate identities in critical dimensions.
+The schema acts as a contract between logic and storage.
+Contract based design reduces accidental data corruption.
+By using a schema, the project enforces structural discipline.
+Schema driven systems are easier to reason about over time.
+The schema also documents business expectations for developers.
+Constraint declarations encode policy at the data layer.
+This approach reduces reliance on fragile client-side assumptions.
+The DBMS therefore becomes both storage engine and rule guardian.
+
+Section 5: Data Insertion and Creation Semantics
+------------------------------------------------
+Creation operations introduce new records into the database lifecycle.
+User signup is a creation event in identity management terms.
+Product onboarding is a creation event in catalog management terms.
+Order placement is a creation event in transaction history terms.
+Insert semantics require validation before persistence.
+Validation ensures minimum completeness and acceptable value quality.
+Creation logic reflects business rules about allowable new states.
+The DBMS assigns identity values for stable future reference.
+Successful insertion transitions data from transient input to durable fact.
+Failure to insert preserves consistency by rejecting invalid proposals.
+Creation paths are therefore controlled entry points into system truth.
+This control is central to predictable data evolution.
+
+Section 6: Data Retrieval and Read Behavior
+-------------------------------------------
+Read operations convert stored facts into usable application views.
+Product listing is a classic read workload optimized for availability.
+Authentication checks rely on selective user retrieval.
+Admin dashboards rely on aggregated reads across multiple entities.
+Read logic reflects separation between operational and analytical needs.
+Operational reads prioritize correctness for immediate interactions.
+Administrative reads prioritize visibility and oversight.
+The project demonstrates both simple and composite retrieval patterns.
+Consistent reads depend on stable query definitions.
+Ordering of results improves user comprehension and workflow control.
+Read paths show how DBMS querying powers dynamic interfaces.
+Without reads, persisted data would have no practical utility.
+
+Section 7: Update Operations and Mutable State
+----------------------------------------------
+Updates modify existing rows to represent changing reality.
+Cart state is inherently mutable because user intent changes frequently.
+Product details may evolve due to pricing or catalog refinement.
+Update logic must target precise records to avoid side effects.
+Controlled updates preserve entity identity while changing attributes.
+The DBMS enforces structural validity during modification.
+Updates embody the principle of state transition under constraints.
+Audit minded design treats every update as meaningful business movement.
+Frequent updates require clear ownership and lifecycle assumptions.
+The project captures mutable behavior primarily in carts and products.
+Update semantics balance flexibility with data discipline.
+Reliable update handling is essential for trust in interactive systems.
+
+Section 8: Deletion Semantics and Data Lifecycle End
+----------------------------------------------------
+Deletion represents intentional removal from active system state.
+User deletion models account termination from an administrative perspective.
+Associated dependent data must be handled to avoid orphaned records.
+Cart removal with user deletion supports lifecycle coherence.
+Deletion is irreversible in basic operational models unless archived.
+Therefore deletion operations require stronger governance than reads.
+The project frames deletion as a privileged action with explicit authority.
+From DBMS theory, delete operations are lifecycle boundary events.
+They enforce domain hygiene by removing obsolete or disallowed data.
+Careful deletion policy prevents accumulation of invalid references.
+Administrative deletion also demonstrates practical data stewardship.
+End of lifecycle handling is as important as record creation.
+
+Section 9: Integrity Rules and Consistency Guarantees
+-----------------------------------------------------
+Data integrity means stored information remains valid and coherent.
+Entity integrity requires unique, non-null primary keys.
+Domain integrity requires values to match expected types and ranges.
+Relational integrity requires references to remain meaningful.
+Business integrity requires operations to reflect real domain rules.
+The project uses DBMS constraints plus application validation for integrity.
+Layered integrity checks reduce chances of malformed persistence.
+Consistency is maintained by rejecting invalid operations early.
+Consistent records improve reliability of downstream reads and reports.
+Integrity rules also reduce debugging complexity for developers.
+In commerce workflows, integrity directly affects user trust.
+The project illustrates practical integrity enforcement in a compact schema.
+
+Section 10: Transactions and Failure Handling Concepts
+------------------------------------------------------
+A transaction groups related changes into an atomic unit.
+Atomicity means either all intended changes happen or none happen.
+In checkout workflows, atomic thinking is especially important.
+Durability ensures committed orders persist after failures.
+Consistency ensures transitions remain within legal schema boundaries.
+Isolation protects concurrent operations from corrupt interaction.
+Even when explicit transaction blocks are minimal, transactional ideas still apply.
+Failure handling should avoid partially applied business outcomes.
+Clear error responses are part of transactional transparency.
+Rollback oriented reasoning improves resilience under edge conditions.
+Reliable commerce depends on transaction-aware design philosophy.
+The project reflects these concepts through cautious operation sequencing.
+
+Section 11: Concurrency and Multi-User Behavior
+------------------------------------------------
+Multiple users may interact with the system at overlapping times.
+Concurrency control ensures one user action does not invalidate another.
+DBMS locking and serialization policies mediate conflicting writes.
+Read and write contention is common in shared catalog systems.
+Carts are user scoped, reducing some forms of conflict.
+Shared product records may still face concurrent administrative edits.
+Deterministic update targets reduce race condition impact.
+Stable key based access helps concurrency safety.
+Concurrency awareness is essential even in small demo systems.
+The project introduces students to real shared state challenges.
+Correctness under overlap is a core DBMS quality criterion.
+Scalable systems require deliberate concurrency strategy from the start.
+
+Section 12: Security and Authorization at Data Boundaries
+---------------------------------------------------------
+Security in DBMS contexts includes confidentiality and access control.
+Not every actor should have permission for every operation.
+Owner only capabilities represent privileged administrative authority.
+Authorization gates enforce role based control over sensitive operations.
+User level operations are limited to customer workflow actions.
+Administrative operations include high impact changes like deletion.
+Security boundaries protect data integrity and business continuity.
+Authentication identifies actor identity before trusted operations proceed.
+Authorization checks determine if an identified actor is allowed.
+Data layer exposure should be minimized to necessary operations.
+Principle of least privilege applies directly to database backed APIs.
+The project demonstrates practical separation between public and privileged actions.
+
+Section 13: Performance and Query Efficiency Principles
+-------------------------------------------------------
+Performance in DBMS systems depends on data layout and query patterns.
+Frequent read paths benefit from predictable filtering and ordering.
+Indexes can improve lookup speed for high use attributes.
+Primary key indexing is foundational for efficient point access.
+Unique constraints often imply indexed access paths.
+Batch retrieval patterns can reduce repeated round trips.
+Small schemas still benefit from thoughtful access design.
+Efficiency matters because user perception is latency sensitive.
+Administrative summaries require broader scans than simple product reads.
+As data volume grows, naive queries become increasingly expensive.
+Performance planning should evolve with observed workload.
+The project provides a base where optimization concepts can be introduced.
+
+Section 14: Analytical Visibility Through Admin Views
+-----------------------------------------------------
+Operational databases can also support lightweight analytics.
+Admin totals transform raw records into management indicators.
+Counts of users, products, and orders provide health snapshots.
+Historical order data supports trend awareness and decision support.
+This dual use reflects OLTP plus basic reporting behavior.
+Even simple dashboards demonstrate value extraction from stored facts.
+Visibility enables intervention when anomalies appear.
+Centralized data enables consistent metrics across stakeholders.
+Analytical summaries depend on integrity of transactional input.
+The project shows how retrieval design supports oversight.
+Data informed management is a practical DBMS outcome.
+Reporting capability is therefore a natural extension of transactional storage.
+
+Section 15: External Event Projection to Google Sheets
+------------------------------------------------------
+The system can emit selected events to an external sheet destination.
+This is conceptually a secondary sink for audit and monitoring visibility.
+Event projection decouples core storage from external analysis tooling.
+Primary truth remains in the relational database.
+External projection supports observability without replacing core persistence.
+Event categories mirror major lifecycle milestones.
+Timestamped event streams improve chronological analysis.
+External logs can aid non-technical stakeholders who prefer spreadsheet interfaces.
+This pattern resembles lightweight data integration architecture.
+It also demonstrates boundaries between operational DB and reporting surfaces.
+Proper design treats external sync as best effort rather than source of truth.
+The project therefore introduces integration thinking alongside DBMS fundamentals.
+
+Section 16: End-to-End Conceptual Workflow Summary
+--------------------------------------------------
+A visitor begins with read access to the product catalog.
+Identity creation or login establishes accountable user context.
+Cart updates represent mutable intention before commitment.
+Checkout transforms intention into immutable order history.
+Administrative users supervise and curate system state.
+Each phase maps to a specific class of DBMS operation.
+Create, read, update, and delete together model the full lifecycle.
+Integrity constraints keep every lifecycle step structurally valid.
+Authorization keeps sensitive transitions under controlled authority.
+Persistence ensures business memory survives beyond any single session.
+The full design demonstrates how DBMS theory powers practical applications.
+This project is a compact case study of relational system thinking in action.

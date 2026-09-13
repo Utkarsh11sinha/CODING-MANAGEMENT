@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartlane ER Diagram</title>
+  <link rel="stylesheet" href="er-diagram.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <h1>ER Diagram: Cartlane Store</h1>
+      <p>Entities: Users, Products, Cart, Orders</p>
+    </header>
+
+    <section class="diagram-wrap" aria-label="Entity relationship diagram for Cartlane">
+      <svg class="er-canvas" viewBox="0 0 1420 920" role="img" aria-label="Users has one to one relation with Cart and one to many relation with Orders">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L10,4 L0,8 z"></path>
+          </marker>
+        </defs>
+
+        <g class="entity" transform="translate(60,120)">
+          <rect x="0" y="0" width="320" height="260" rx="16"></rect>
+          <line x1="0" y1="52" x2="320" y2="52"></line>
+          <text class="entity-title" x="160" y="34" text-anchor="middle">Users</text>
+          <text x="20" y="90">PK id</text>
+          <text x="20" y="120">email (unique)</text>
+          <text x="20" y="150">password</text>
+          <text x="20" y="180">name</text>
+          <text x="20" y="210">created_at</text>
+        </g>
+
+        <g class="entity" transform="translate(550,90)">
+          <rect x="0" y="0" width="320" height="260" rx="16"></rect>
+          <line x1="0" y1="52" x2="320" y2="52"></line>
+          <text class="entity-title" x="160" y="34" text-anchor="middle">Cart</text>
+          <text x="20" y="90">PK id</text>
+          <text x="20" y="120">FK user_id (unique)</text>
+          <text x="20" y="150">items_json</text>
+          <text x="20" y="180">updated_at</text>
+          <text x="20" y="210">logical lines: product_id, qty</text>
+        </g>
+
+        <g class="entity" transform="translate(1040,120)">
+          <rect x="0" y="0" width="320" height="280" rx="16"></rect>
+          <line x1="0" y1="52" x2="320" y2="52"></line>
+          <text class="entity-title" x="160" y="34" text-anchor="middle">Orders</text>
+          <text x="20" y="90">PK id</text>
+          <text x="20" y="120">FK user_id</text>
+          <text x="20" y="150">user_email</text>
+          <text x="20" y="180">items_json</text>
+          <text x="20" y="210">total</text>
+          <text x="20" y="240">created_at</text>
+        </g>
+
+        <g class="entity" transform="translate(550,520)">
+          <rect x="0" y="0" width="320" height="280" rx="16"></rect>
+          <line x1="0" y1="52" x2="320" y2="52"></line>
+          <text class="entity-title" x="160" y="34" text-anchor="middle">Products</text>
+          <text x="20" y="90">PK id</text>
+          <text x="20" y="120">name</text>
+          <text x="20" y="150">price</text>
+          <text x="20" y="180">category</text>
+          <text x="20" y="210">image</text>
+        </g>
+
+        <g class="relationship-node">
+          <polygon points="410,250 470,210 530,250 470,290"></polygon>
+          <text x="470" y="256" text-anchor="middle">owns</text>
+        </g>
+
+        <g class="relationship-node">
+          <polygon points="860,390 920,350 980,390 920,430"></polygon>
+          <text x="920" y="396" text-anchor="middle">places</text>
+        </g>
+
+        <g class="relationship-node">
+          <polygon points="650,430 710,390 770,430 710,470"></polygon>
+          <text x="710" y="436" text-anchor="middle">contains</text>
+        </g>
+
+        <g class="relationship-node">
+          <polygon points="920,620 980,580 1040,620 980,660"></polygon>
+          <text x="980" y="626" text-anchor="middle">includes</text>
+        </g>
+
+        <g class="relation">
+          <line x1="380" y1="250" x2="410" y2="250" marker-end="url(#arrow)"></line>
+          <line x1="530" y1="250" x2="550" y2="220" marker-end="url(#arrow)"></line>
+          <text x="390" y="235">1</text>
+          <text x="540" y="235">1</text>
+          <text class="label" x="430" y="200">User to Cart</text>
+        </g>
+
+        <g class="relation">
+          <path d="M380 310 L430 310 L430 390 L860 390" marker-end="url(#arrow)"></path>
+          <path d="M980 390 L1010 390 L1010 300 L1040 300" marker-end="url(#arrow)"></path>
+          <text x="392" y="296">1</text>
+          <text x="1020" y="286">N</text>
+          <text class="label" x="620" y="420">User to Orders</text>
+        </g>
+
+        <g class="relation secondary">
+          <line x1="710" y1="350" x2="710" y2="390" marker-end="url(#arrow)"></line>
+          <line x1="710" y1="470" x2="710" y2="520" marker-end="url(#arrow)"></line>
+          <text x="722" y="374">N</text>
+          <text x="722" y="510">N</text>
+          <text class="label" x="740" y="452">Cart to Products</text>
+        </g>
+
+        <g class="relation secondary">
+          <path d="M1200 400 L1200 620 L1040 620" marker-end="url(#arrow)"></path>
+          <path d="M920 620 L900 620 L900 660 L870 660" marker-end="url(#arrow)"></path>
+          <text x="1168" y="612">N</text>
+          <text x="882" y="648">N</text>
+          <text class="label" x="980" y="560">Orders to Products</text>
+        </g>
+
+        <g class="relation tertiary">
+          <path d="M870 250 L940 250 L940 220 L1040 220" marker-end="url(#arrow)"></path>
+          <text class="label" x="900" y="210">checkout creates order</text>
+        </g>
+
+        <g class="legend" transform="translate(60,560)">
+          <rect x="0" y="0" width="390" height="240" rx="14"></rect>
+          <text class="legend-title" x="20" y="36">Legend and Constraints</text>
+          <text x="20" y="74">1. Users to Cart: 1:1 (user_id unique in Cart)</text>
+          <text x="20" y="106">2. Users to Orders: 1:N (one user, many orders)</text>
+          <text x="20" y="138">3. Cart to Products: conceptual N:N via items_json</text>
+          <text x="20" y="170">4. Orders to Products: conceptual N:N via items_json</text>
+          <text x="20" y="202">5. Dashed path indicates process flow, not FK relation</text>
+        </g>
+      </svg>
+    </section>
+
+    <section class="notes">
+      <h2>Relation Summary</h2>
+      <p>Users to Cart is modeled as one to one using a unique user_id in the cart table.</p>
+      <p>Users to Orders is modeled as one to many because one user can place multiple orders over time.</p>
+      <p>Products connect to Cart and Orders through item payloads in the current implementation model.</p>
+    </section>
+  </main>
+</body>
+</html>

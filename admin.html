@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartlane Owner Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main style="padding-top: 24px; padding-bottom: 40px;">
+    <section class="hero">
+      <p class="hero-badge">Owner Controls</p>
+      <h2>Data Access and Manipulation</h2>
+      <p>Use your owner key to fetch and manage products, users, and orders.</p>
+    </section>
+
+    <section class="product-card" style="margin-bottom: 18px; animation-delay: 0ms; opacity: 1; transform: none;">
+      <h3 style="margin: 0 0 8px;">Authenticate</h3>
+      <div class="login-form" style="padding: 0;">
+        <label for="ownerKey">Owner Key</label>
+        <input id="ownerKey" type="password" placeholder="Default: owner123" />
+        <button id="loadDashboardBtn" type="button" class="btn btn-primary">Load Dashboard</button>
+      </div>
+      <p id="adminMessage" class="helper-text"></p>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="products-grid" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px;">
+        <article class="product-card" style="opacity: 1; transform: none; animation: none;">
+          <p class="meta">Products</p>
+          <h4 id="totalProducts">0</h4>
+        </article>
+        <article class="product-card" style="opacity: 1; transform: none; animation: none;">
+          <p class="meta">Users</p>
+          <h4 id="totalUsers">0</h4>
+        </article>
+        <article class="product-card" style="opacity: 1; transform: none; animation: none;">
+          <p class="meta">Orders</p>
+          <h4 id="totalOrders">0</h4>
+        </article>
+      </div>
+
+      <section class="product-card" style="opacity: 1; transform: none; animation: none; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 10px;">Add Product</h3>
+        <form id="addProductForm" class="login-form" style="padding: 0; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+          <input id="newName" placeholder="Product name" required />
+          <input id="newPrice" placeholder="Price" type="number" step="0.01" required />
+          <input id="newCategory" placeholder="Category" required />
+          <input id="newImage" placeholder="Image URL" required />
+          <button class="btn btn-primary" type="submit">Add Product</button>
+        </form>
+      </section>
+
+      <section class="product-card" style="opacity: 1; transform: none; animation: none; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 10px;">Products</h3>
+        <div id="adminProducts"></div>
+      </section>
+
+      <section class="product-card" style="opacity: 1; transform: none; animation: none; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 10px;">Users</h3>
+        <div id="adminUsers"></div>
+      </section>
+
+      <section class="product-card" style="opacity: 1; transform: none; animation: none;">
+        <h3 style="margin: 0 0 10px;">Orders</h3>
+        <div id="adminOrders"></div>
+      </section>
+    </section>
+
+    <p style="margin-top: 20px;"><a href="index.html" class="btn btn-ghost admin-link">Back to Store</a></p>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>

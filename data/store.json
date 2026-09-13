@@ -1,0 +1,93 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "name": "Aero Running Shoes",
+      "price": 79.99,
+      "category": "Footwear",
+      "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 2,
+      "name": "Urban Sling Bag",
+      "price": 42.5,
+      "category": "Accessories",
+      "image": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 3,
+      "name": "Noise-Cancel Headphones",
+      "price": 129,
+      "category": "Electronics",
+      "image": "https://images.unsplash.com/photo-1484704849700-f032a568e944?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 4,
+      "name": "Smartwatch S2",
+      "price": 159.99,
+      "category": "Wearables",
+      "image": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 5,
+      "name": "Desk Lamp Minimal",
+      "price": 36,
+      "category": "Home",
+      "image": "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 6,
+      "name": "Water Bottle Steel",
+      "price": 19.99,
+      "category": "Fitness",
+      "image": "https://images.unsplash.com/photo-1523362628745-0c100150b504?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 7,
+      "name": "Cotton Hoodie",
+      "price": 54,
+      "category": "Apparel",
+      "image": "https://images.unsplash.com/photo-1576566588028-4147f3842f27?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 8,
+      "name": "Mechanical Keyboard",
+      "price": 88.75,
+      "category": "Electronics",
+      "image": "https://images.unsplash.com/photo-1511467687858-23d96c32e4ae?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 9,
+      "name": "Portable Speaker",
+      "price": 65.25,
+      "category": "Audio",
+      "image": "https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "id": 10,
+      "name": "Classic Sunglasses",
+      "price": 31.4,
+      "category": "Accessories",
+      "image": "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=80"
+    }
+  ],
+  "users": [
+    {
+      "id": 1774444272667,
+      "email": "test@example.com",
+      "createdAt": "2026-03-25T13:11:12.667Z"
+    },
+    {
+      "id": 1774444792327,
+      "email": "abc@abc.com",
+      "createdAt": "2026-03-25T13:19:52.327Z"
+    },
+    {
+      "id": 1774445033350,
+      "email": "newuser1@example.com",
+      "createdAt": "2026-03-25T13:23:53.350Z"
+    }
+  ],
+  "carts": [],
+  "orders": []
+}

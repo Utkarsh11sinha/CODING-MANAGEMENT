@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cartlane Store</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="orb orb-one" aria-hidden="true"></div>
+  <div class="orb orb-two" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <p class="brand-kicker">Daily Drops</p>
+      <h1>Cartlane</h1>
+    </div>
+
+    <div class="account-actions">
+      <p id="welcomeText" class="welcome-text">Guest mode</p>
+      <a href="admin.html" class="btn btn-ghost admin-link">Owner Panel</a>
+      <button id="openLoginBtn" type="button" class="btn btn-ghost">Login</button>
+      <button id="openSignupBtn" type="button" class="btn btn-ghost">Sign Up</button>
+      <button id="logoutBtn" type="button" class="btn btn-ghost hidden">Logout</button>
+      <button id="openCartBtn" type="button" class="btn btn-primary">Cart <span id="cartCount">0</span></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="hero-badge">10 handpicked items</p>
+      <h2>Build your next order in seconds</h2>
+      <p>Fast product browsing, quick login, and a sticky cart experience.</p>
+    </section>
+
+    <section>
+      <h3 class="section-title">Products</h3>
+      <div id="productsGrid" class="products-grid" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <aside id="cartPanel" class="side-panel" aria-label="Shopping cart" aria-hidden="true">
+    <div class="panel-header">
+      <h3>Your Cart</h3>
+      <button id="closeCartBtn" type="button" class="btn btn-ghost">Close</button>
+    </div>
+    <div id="cartItems" class="cart-items"></div>
+    <div class="cart-footer">
+      <p>Subtotal: <strong id="subtotal">$0.00</strong></p>
+      <button id="checkoutBtn" type="button" class="btn btn-primary btn-full">Checkout</button>
+    </div>
+  </aside>
+
+  <div id="loginModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="modal-card">
+      <div class="panel-header">
+        <h3 id="loginTitle">Login</h3>
+        <button id="closeLoginBtn" type="button" class="btn btn-ghost">Close</button>
+      </div>
+
+      <form id="loginForm" class="login-form">
+        <label for="email">Email</label>
+        <input id="email" type="email" required placeholder="you@example.com" />
+
+        <label for="password">Password</label>
+        <input id="password" type="password" required minlength="1" placeholder="Enter password" />
+
+        <button id="authSubmitBtn" type="submit" class="btn btn-primary btn-full">Sign In</button>
+      </form>
+      <p id="loginMessage" class="helper-text"></p>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
