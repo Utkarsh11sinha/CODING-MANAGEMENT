@@ -23,6 +23,17 @@ This document records the progress and decisions made during the implementation 
 **Results**:
 - The specification now fully meets the Lab 1 compliance requirements, covering scope, design decisions, and lifecycle.
 
+### 2. Admin Stock Updates (Issue #3)
+**Task**: Implement the ability for administrators to update the stock quantity of existing products via a PUT request.
+
+**Changes Made**:
+- **Updated `server.js`**: Modified `PUT /api/admin/products/:id` to accept `stock_quantity` as an absolute value and added validation to ensure the value is not negative.
+- **Updated `admin.js`**: Updated the product editing UI to allow users to input a new `stock_quantity`.
+
+**Results**:
+- Administrators can now successfully update the stock levels for any product through the admin dashboard.
+- The API prevents setting invalid (negative) stock quantities.
+
 ## Key Design Decisions
 - **Stock Initialization**: All existing database records for products will be migrated/initialized with a default value of 10 to ensure continuity.
 - **Update Method**: Admin updates to stock are absolute values (setting the total) rather than incremental/decremental changes to simplify the API and prevent race condition complexities in the admin interface.
@@ -32,8 +43,9 @@ This document records the progress and decisions made during the implementation 
 - [x] Requirement Audit
 - [x] Specification Completion
 - [x] Implementation Unit 1: Product Stock Schema
-- [ ] Implementation Unit 2: Admin Stock Updates
+- [x] Implementation Unit 2: Admin Stock Updates
 - [ ] Implementation Unit 3: Checkout Stock Validation
+
 ## Post-Implementation Notes
 
 ### Context Management for Issue #2 Completion

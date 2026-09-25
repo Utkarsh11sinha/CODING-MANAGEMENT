@@ -126,7 +126,7 @@ async function initDatabase() {
     )
   `);
 
-  const countRow = await get("SELECT COUNT(*) AS count FROM products");
+  const count Row = await get("SELECT COUNT(*) AS count FROM products");
   if (!countRow || !countRow.count) {
     for (const product of initialProducts) {
       await run(
@@ -179,7 +179,7 @@ async function initDatabase() {
 
 app.get("/api/products", async (req, res, next) => {
   try {
-    const products = await all("SELECT id, name, price, category, image FROM products ORDER BY id");
+    const products = await all("SELECT id, name, price, category, image, stock_quantity FROM products ORDER BY id");
     res.json(products);
   } catch (error) {
     next(error);
@@ -348,7 +348,7 @@ app.post("/api/orders", async (req, res, next) => {
 
 app.get("/api/admin/overview", requireOwner, async (req, res, next) => {
   try {
-    const products = await all("SELECT id, name, price, category, image FROM products ORDER BY id");
+    const products = await all("SELECT id, name, price, category, image, stock_quantity FROM products ORDER BY id");
     const users = await all("SELECT id, email, name, created_at AS createdAt FROM users ORDER BY id DESC");
     const orderRows = await all("SELECT id, user_id AS userId, user_email AS userEmail, items_json, total, created_at AS createdAt FROM orders ORDER BY id DESC");
 
@@ -399,13 +399,17 @@ app.put("/api/admin/products/:id", requireOwner, async (req, res, next) => {
       return res.status(404).json({ message: "Product not found." });
     }
 
-    const current = await get("SELECT id, name, price, category, image FROM products WHERE id = ?", [id]);
+    const current = await get("SELECT id, name, price, category, image, stock_quantity FROM products WHERE id = ?", [id]);
 
     const name = req.body.name !== undefined ? String(req.body.name).trim() : current.name;
     const price = req.body.price !== undefined ? Number(req.body.price) : Number(current.price);
     const category = req.body.category !== undefined ? String(req.body.category).trim() : current.category;
     const image = req.body.image !== undefined ? String(req.body.image).trim() : current.image;
     const stock_quantity = req.body.stock_quantity !== undefined ? Number(req.body.stock_quantity) : current.stock_quantity;
+
+    if (stock_quantity < 0) {
+      return res.status(400).json({ message: "Stock quantity cannot be negative." });
+    }
 
     await run(
       "UPDATE products SET name = ?, price = ?, category = ?, image = ?, stock_quantity = ? WHERE id = ?",

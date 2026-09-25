@@ -82,7 +82,7 @@ function renderOverview(data) {
     row.className = "cart-row";
     row.innerHTML = `
       <p><strong>#${product.id} - ${product.name}</strong></p>
-      <p class="meta">${product.category} | $${Number(product.price).toFixed(2)}</p>
+      <p class="meta">${product.category} | $${Number(product.price).toFixed(2)} | Stock: ${product.stock_quantity}</p>
       <div class="qty-actions">
         <button class="btn btn-ghost" type="button" data-action="edit" data-id="${product.id}">Edit</button>
         <button class="btn btn-ghost" type="button" data-action="delete" data-id="${product.id}">Delete</button>
@@ -179,6 +179,9 @@ async function editProduct(productId, current) {
   const nextImage = prompt("Image URL", current.image);
   if (nextImage === null) return;
 
+  const nextStock = prompt("Stock Quantity", String(current.stock_quantity));
+  if (nextStock === null) return;
+
   try {
     const response = await fetch(`/api/admin/products/${productId}?key=${encodeURIComponent(ownerKey)}`, {
       method: "PUT",
@@ -187,7 +190,8 @@ async function editProduct(productId, current) {
         name: nextName.trim(),
         price: Number(nextPrice),
         category: nextCategory.trim(),
-        image: nextImage.trim()
+        image: nextImage.trim(),
+        stock_quantity: Number(nextStock)
       })
     });
 
