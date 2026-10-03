@@ -8,7 +8,7 @@ This document records the progress and decisions made during the implementation 
 ## Completed Tasks
 
 ### 1. Compliance Audit & Specification Refinement
-**Task**: Perform a final compliance audit of the repository against Lab 1 requirements and fix missing specification details.
+**Task**: Perform a final compliance audit of the repository against the Lab 1 requirements and fix missing specification details.
 
 **Prompts/Instructions**:
 - "Perform a final compliance audit of the current repository against the Lab 1 requirements... Inspect the current repository and report ONLY the current state."
@@ -27,24 +27,36 @@ This document records the progress and decisions made during the implementation 
 **Task**: Implement the ability for administrators to update the stock quantity of existing products via a PUT request.
 
 **Changes Made**:
-- **Updated `server.js`**: Modified `PUT /api/admin/products/:id` to accept `stock_quantity` as an absolute value and added validation to ensure the value is not negative.
+- **Updated `server.js`**: Modified `PUT /api/admin/ues/products/:id` to accept `stock_quantity` as an absolute value and added validation to ensure the value is not negative.
 - **Updated `admin.js`**: Updated the product editing UI to allow users to input a new `stock_quantity`.
 
 **Results**:
 - Administrators can now successfully update the stock levels for any product through the admin dashboard.
 - The API prevents setting invalid (negative) stock quantities.
 
+### 3. Git Guardrails Implementation (Lab 2 Evidence)
+**Task**: Implement safety hooks to prevent accidental destructive git operations.
+
+**Evidence**:
+- **Skill Discovery**: The `git-guardrails-claude-code` skill was reached from a natural language request regarding Git safety.
+- **Trigger**: The skill was triggered because the user requested to prevent "accidental force pushes".
+- **Verification (Blocked)**: A test simulating `git push --force` was successfully intercepted and blocked by the `PreToolUse` hook.
+- **Verification (Allowed)**: A standard `git commit` was successfully permitted, ensuring no interference with normal workflows.
+- **Decision**: Chose to implement the guardrail specifically for the project scope via `.claude/settings.json`.
+
 ## Key Design Decisions
 - **Stock Initialization**: All existing database records for products will be migrated/initialized with a default value of 10 to ensure continuity.
 - **Update Method**: Admin updates to stock are absolute values (setting the total) rather than incremental/decremental changes to simplify the API and prevent race condition complexities in the admin interface.
 - **Transactionality**: Order creation and stock decrement must be handled within a single atomic database transaction to prevent the "lost update" or "partial success" scenarios.
+- **Git Safety**: Implemented `PreToolUse` hooks to block `git push`, `git reset --hard`, and `git clean` to protect the repository from accidental destructive commands.
 
 ## Status
 - [x] Requirement Audit
 - [x] Specification Completion
 - [x] Implementation Unit 1: Product Stock Schema
 - [x] Implementation Unit 2: Admin Stock Updates
-- [ ] Implementation Unit 3: Checkout Stock Validation
+- [x] Implementation Unit 3: Checkout Stock Validation
+- [x] Git Guardrail Implementation
 
 ## Post-Implementation Notes
 
