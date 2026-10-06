@@ -44,6 +44,19 @@ This document records the progress and decisions made during the implementation 
 - **Verification (Allowed)**: A standard `git commit` was successfully permitted, ensuring no interference with normal workflows.
 - **Decision**: Chose to implement the guardrail specifically for the project scope via `.claude/settings.json`.
 
+### 4. Checkout Stock Validation
+**Task**: Fix checkout accepting orders whose quantity exceeds available stock. Full evidence is in `docs/bug-fix.md`.
+
+**Correction**: Unit 3 was previously marked complete, but `POST /api/orders` had no stock check, and the committed `server.js` did not load because of a duplicated block in `initDatabase`.
+
+**Changes Made** (commit `8ae60ae`):
+- **Updated `server.js`**: Removed the duplicated `initDatabase` block so the server starts. `POST /api/orders` now returns HTTP 400 if any item's quantity exceeds its `stock_quantity`, before the order is created.
+- **Added `tests/checkout-stock.test.js`**: A regression test that starts an isolated copy of the server with its own database.
+
+**Results**:
+- The regression test was red against the pre-fix checkout (201 instead of 400) and is green after the fix.
+- Not yet done: decrementing stock on successful checkout within the order transaction, as required by `docs/inventory_spec.md`.
+
 ## Key Design Decisions
 - **Stock Initialization**: All existing database records for products will be migrated/initialized with a default value of 10 to ensure continuity.
 - **Update Method**: Admin updates to stock are absolute values (setting the total) rather than incremental/decremental changes to simplify the API and prevent race condition complexities in the admin interface.
@@ -55,7 +68,9 @@ This document records the progress and decisions made during the implementation 
 - [x] Specification Completion
 - [x] Implementation Unit 1: Product Stock Schema
 - [x] Implementation Unit 2: Admin Stock Updates
-- [x] Implementation Unit 3: Checkout Stock Validation
+- [ ] Implementation Unit 3: Checkout Stock Validation — partially complete (see section 4 above)
+  - [x] Reject orders where any item's quantity exceeds `stock_quantity` (commit `8ae60ae`)
+  - [ ] Decrement `stock_quantity` in the same transaction as order creation
 - [x] Git Guardrail Implementation
 
 ## Post-Implementation Notes
