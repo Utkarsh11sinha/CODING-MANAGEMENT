@@ -91,9 +91,9 @@ Each decision lists only what the existing docs support. Where a part is not rec
 ### Git Safety
 - **Question**: How should the agent be prevented from running `git push --force`?
 - **Alternatives**: A text-based instruction to the agent alone (`docs/agent-control.md` describes the instruction that the hook backs up).
-- **Decision**: Add a `PreToolUse` hook (`.claude/hooks/agent-control.sh`) in the project's `.claude/settings.json` that blocks Bash commands containing `push --force`, in addition to the instruction.
+- **Decision**: Add a `PreToolUse` hook (`.claude/hooks/agent-control.sh`) in the project's `.claude/settings.json` that blocks force pushes (`push` followed by `--force` or `-f`), in addition to the instruction. The hook originally matched only `push --force`; `-f` was added later.
 - **Why**: "an agent might occasionally ignore or misinterpret text-based instructions, and the hook provides a secondary, programmatic layer of safety" (`docs/agent-control.md`). Why the hook is project-level rather than user-level is not recorded.
-- **Coverage**: It does not block `git push -f`, plain `git push`, `git reset --hard`, or `git clean`. When tested with sample input, it matched only compact JSON (`"command":"…"`) and allowed the same command with a space after the colon.
+- **Coverage**: Blocks `push` followed by `--force` (including `--force-with-lease`) or `-f` within one command segment, and reads the `command` field with or without spaces around the colon. Tested by feeding sample tool inputs to the script: `git push --force`, `git push -f`, `git push origin main -f` (spaced JSON), and `git push --force-with-lease` were blocked (exit 2); `git status`, `git push origin main`, `git push origin main && rm -f tmp.txt`, and `git push --follow-tags` were allowed (exit 0). Not covered: combined short flags such as `-uf`, commands containing escaped quotes (the field may be read only up to the first quote, before the flag), `git reset --hard`, and `git clean`.
 
 ## Issue Dependencies and Order
 Source: GitHub issues #1–#5. Issue #1 (Inventory Management) lists the implementation order #2 → #3 → #4 → #5. Each ticket states its own dependency, and those show that not every step in that order is a true dependency.
@@ -122,7 +122,7 @@ Source: GitHub issues #1–#5. Issue #1 (Inventory Management) lists the impleme
 - [x] Implementation Unit 2: Admin Stock Updates — code present; not verifiable against committed code before `8ae60ae`
 - [x] Implementation Unit 3 / Issue #4: Checkout Stock Validation — commit `8ae60ae` (see section 4 above)
 - [ ] Issue #5: Atomic Order + Stock Deduction — not yet implemented
-- [x] Git Guardrail Implementation — blocks `push --force` only (see Key Design Decisions)
+- [x] Git Guardrail Implementation — blocks `git push --force` and `git push -f` (see Key Design Decisions)
 
 ## Process Notes
 

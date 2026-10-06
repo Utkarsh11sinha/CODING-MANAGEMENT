@@ -12,10 +12,11 @@ input=$(cat)
 # Extract the command using grep/sed to avoid heavy dependencies like jq in a simple hook
 # We are looking for the "command" field value.
 # Since -P (Perl-style) failed, I will use a simpler sed approach.
-command=$(echo "$input" | sed -n 's/.*"command":"\([^"]*\)".*/\1/p')
+command=$(echo "$input" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
 if [ -n "$command" ]; then
-    if echo "$command" | grep -q "push --force"; then
+    # Matches --force (including --force-with-lease) or -f after "push", within one command segment
+    if echo "$command" | grep -Eq 'push[^;&|]*[[:space:]](--force|-f([[:space:]]|$))'; then
         echo "ERROR: [Agent Control] The command '$command' is blocked by the enforcement hook. Do not use force pushes." >&2
         exit 2
     fi
