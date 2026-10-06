@@ -126,52 +126,12 @@ async function initDatabase() {
     )
   `);
 
-  const count Row = await get("SELECT COUNT(*) AS count FROM products");
+  const countRow = await get("SELECT COUNT(*) AS count FROM products");
   if (!countRow || !countRow.count) {
     for (const product of initialProducts) {
       await run(
         "INSERT INTO products (name, price, category, image, stock_quantity) VALUES (?, ?, ?, ?, ?)",
         [product.name, product.price, product.category, product.image, 10]
-      );
-    }
-  }
-
-  await run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      name TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )
-  `);
-
-  await run(`
-    CREATE TABLE IF NOT EXISTS carts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL UNIQUE,
-      items_json TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )
-  `);
-
-  await run(`
-    CREATE TABLE IF NOT EXISTS orders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
-      user_email TEXT NOT NULL,
-      items_json TEXT NOT NULL,
-      total REAL NOT NULL,
-      created_at TEXT NOT NULL
-    )
-  `);
-
-  const countRow = await get("SELECT COUNT(*) AS count FROM products");
-  if (!countRow || !countRow.count) {
-    for (const product of initialProducts) {
-      await run(
-        "INSERT INTO products (name, price, category, image) VALUES (?, ?, ?, ?)",
-        [product.name, product.price, product.category, product.image]
       );
     }
   }
@@ -296,7 +256,7 @@ app.post("/api/orders", async (req, res, next) => {
 
     const placeholders = ids.map(() => "?").join(",");
     const productRows = await all(
-      `SELECT id, name, price FROM products WHERE id IN (${placeholders})`,
+      `SELECT id, name, price, stock_quantity FROM products WHERE id IN (${placeholders})`,
       ids
     );
     const byId = new Map(productRows.map((product) => [product.id, product]));
@@ -319,6 +279,11 @@ app.post("/api/orders", async (req, res, next) => {
 
     if (!enrichedItems.length) {
       return res.status(400).json({ message: "No valid items in order." });
+    }
+
+    const overStocked = enrichedItems.find((item) => item.qty > Number(byId.get(item.productId).stock_quantity));
+    if (overStocked) {
+      return res.status(400).json({ message: `Insufficient stock for ${overStocked.name}.` });
     }
 
     const total = Number(enrichedItems.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2));
