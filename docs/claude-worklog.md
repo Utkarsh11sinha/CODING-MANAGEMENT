@@ -62,7 +62,7 @@ This document records the progress and decisions made during the implementation 
 ### 5. Atomic Order + Stock Deduction (Issue #5)
 **Task**: Deduct stock on a successful order, and make order creation, stock deduction and cart clearing one transaction (spec, Unit 4).
 
-**Date**: 2026-10-07. **Not yet committed** at the time of writing; the commit should contain only this unit (Method Judgement, "What this suggests for the remaining work").
+**Date**: 2026-10-07. **Not yet committed** at the time of writing; the commit should contain only this unit (Method Judgement, "What this suggests for the remaining work"). *(Committed as `06289bd`, which contains only `server.js`, `tests/checkout-transaction.test.js`, `docs/inventory_spec.md` and this worklog.)*
 
 **Changes Made**:
 - **Updated `server.js`**:
@@ -130,7 +130,7 @@ Each decision lists only what the existing docs support. Where a part is not rec
 - **How (2026-10-07)**: a dedicated transaction connection rather than `BEGIN … COMMIT` on the shared `db`, because statements from other requests on a shared connection would join the transaction and be rolled back with it. Alternatives not taken:
   - queueing every statement in one tick with `db.serialize()`: a failing statement does not stop the queued `COMMIT`, so a partial write would commit;
   - a new connection per checkout: works, but adds an open/close per order, and concurrent checkouts would contend through SQLite busy waits instead of an in-process queue.
-- **Status**: Implemented on 2026-10-07, not yet committed (section 5).
+- **Status**: Implemented in `06289bd` (2026-10-07, section 5).
 
 ### Repeated Order Lines
 - **Question**: An order lists the same product on several lines, each within stock but summing above it. Is it accepted?
@@ -164,7 +164,7 @@ Source: GitHub issues #1–#5. Issue #1 (Inventory Management) lists the impleme
 | #2 Product Stock Schema | 1 | — (first step) |
 | #3 Admin Stock Updates | 2 | #2 |
 | #4 Checkout Stock Validation | 3 | #2 |
-| #5 Atomic Order + Stock Deduction | — | #4 |
+| #5 Atomic Order + Stock Deduction | 4 | #4 |
 
 ### True dependencies
 - **#3 → #2**: "the stock field needs to exist first." `PUT /api/admin/products/:id` reads and writes `stock_quantity` in the same queries as the other product fields. Without the column, SQLite rejects those queries, the error handler returns HTTP 500, and *all* admin product edits break, not just stock edits. That violates #3's requirement that existing product updates keep working.
@@ -182,7 +182,7 @@ Source: GitHub issues #1–#5. Issue #1 (Inventory Management) lists the impleme
 - [x] Implementation Unit 1: Product Stock Schema — code present; not verifiable against committed code before `8ae60ae`
 - [x] Implementation Unit 2: Admin Stock Updates — code present; not verifiable against committed code before `8ae60ae`
 - [x] Implementation Unit 3 / Issue #4: Checkout Stock Validation — commit `8ae60ae` (see section 4 above)
-- [x] Issue #5: Atomic Order + Stock Deduction — implemented and tested 2026-10-07, not yet committed (see section 5)
+- [x] Issue #5: Atomic Order + Stock Deduction — commit `06289bd`, 2026-10-07 (see section 5)
 - [x] Git Guardrail Implementation — blocks `git push --force` and `git push -f` (see Key Design Decisions)
 
 ## Process Notes
@@ -212,6 +212,13 @@ Source: GitHub issues #1–#5. Issue #1 (Inventory Management) lists the impleme
 - **Retained**: that issue and `docs/inventory_spec.md` only.
 - **Left out**: all prior conversation, this worklog, other project documentation, and the code history.
 - **Result**: each session planned its unit without needing anything else. None implemented anything. See Fresh-Session Evidence.
+- **Why and alternatives**: not recorded.
+
+**Boundary 3: #5 implementation session (2026-10-07)**
+- **Retained**: the session started with no prior conversation. The user's request named issue #5 and `docs/inventory_spec.md`, and asked for the existing checkout code to be inspected first.
+- **Also read**: parts of this worklog and other files (listed in Fresh-Session Evidence, Issue #5: Implementation Session). The boundary was therefore wider than Boundary 2's issue-and-spec-only rule.
+- **Continuation**: the review, the two product decisions and these documentation updates were done in the same session, without clearing context.
+- **Why and alternatives**: not recorded.
 
 ## Method Judgement (retrospective, added 2026-10-07)
 This section was written after the fact. Each point is labelled:
@@ -235,6 +242,7 @@ No interview or discovery session is recorded for the decomposition, and none is
 - *Retrospective*: the split is by behavior, not by code. Both tickets change the same `POST /api/orders` handler.
 - *Retrospective*: #4's check (`server.js:284`) reads stock outside any transaction. Several awaited database calls separate that read from the order insert.
 - *Retrospective*: if #5 added the decrement after this check without bringing the check inside the same transaction, two concurrent orders could both pass the check. #5 will therefore probably need to move or repeat #4's check inside the transaction, or use a conditional decrement, so #4's placement of the check is provisional. This rework is expected but not yet observed; #5 has been planned, not implemented.
+  - *Outcome (added 2026-10-07, after #5 was implemented)*: the rework happened as expected. #5 moved the check inside the transaction and added a conditional decrement; `server.js:284` no longer points at the check. See section 5.
 
 ### #5 as One Atomic Unit
 **Recorded at the time**:
@@ -253,6 +261,7 @@ No interview or discovery session is recorded for the decomposition, and none is
 **Cost / tradeoff (retrospective)**:
 - #5 is the largest remaining ticket. It cannot be parallelized, and it delivers nothing until the whole transaction works.
 - While it is open, stock is not deducted at all. A non-atomic deduction would have reduced overselling sooner but could leave orders and stock inconsistent on failure. Keeping #5 whole favors consistency over that interim improvement.
+- *Outcome (added 2026-10-07, after #5 was implemented)*: #5 landed as one unit (section 5). Its rollback test needs all three writes in place: it forces the last write, the cart clear, to fail and checks that the order insert and the stock deductions were undone. Cost actually observed: the unit also had to settle two product questions that deduction made urgent, repeated order lines and fractional quantities (Key Design Decisions).
 
 ### Decomposition Cost Discovered During Implementation
 **Recorded facts** (`docs/bug-fix.md`, section 4, git history; parse results re-checked on 2026-10-07 with `node --check` on each commit's `server.js`):
@@ -275,6 +284,7 @@ No interview or discovery session is recorded for the decomposition, and none is
 **What this suggests for the remaining work (retrospective)**:
 - #5's done condition should include starting the server and running a committed test.
 - #5 should land in its own commit.
+  - *Outcome (added 2026-10-07)*: both held. #5's tests start the server and pass, and #5 landed alone in `06289bd`.
 - These are now part of "Done means" in the spec's Implementation Units section.
 
 ### Reframed After Implementation
@@ -362,7 +372,7 @@ On 2026-10-07, each of issues #2–#5 was given to its own fresh Claude session.
 - It was given only GitHub issue #5 and `docs/inventory_spec.md`.
 - The session's result is recorded below. The full transcript is not stored in the repository.
 
-**Outcome**: the session **planned and reviewed #5 only. It did not implement anything.** No code changed, and #5 remains open.
+**Outcome**: the session **planned and reviewed #5 only. It did not implement anything.** No code changed, and #5 remains open. *(Later on 2026-10-07, #5 was implemented in a different session; see Issue #5: Implementation Session below.)*
 
 **What it identified independently**:
 - **Dependencies**:

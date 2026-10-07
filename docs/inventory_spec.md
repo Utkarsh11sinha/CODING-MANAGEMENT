@@ -135,7 +135,7 @@ Each unit matches one GitHub issue. A fresh session should need only the issue a
   - A test that forces a failure partway through and shows no order, unchanged stock and an unchanged cart.
   - The existing committed test still passes.
 - **Out of scope**: admin stock updates, low-stock alerts, automatic restocking, stock history, reservations, multiple warehouses.
-- **Status**: implemented on 2026-10-07; not yet committed. Verified with `node --test tests/checkout-stock.test.js tests/checkout-transaction.test.js`: 6/6 pass, and all five tests in `checkout-transaction.test.js` fail against the pre-Unit 4 `server.js`. See `docs/claude-worklog.md`, section 5.
+- **Status**: done in commit `06289bd` (2026-10-07). Verified with `node --test tests/checkout-stock.test.js tests/checkout-transaction.test.js`: 6/6 pass, and all five tests in `checkout-transaction.test.js` fail against the pre-Unit 4 `server.js`. See `docs/claude-worklog.md`, section 5.
 - **Known limits**:
   - Checkouts in one server process run one at a time.
   - A lock held longer than 5 s (e.g. by another process on the same database) makes the checkout fail with HTTP 500, with nothing written.
