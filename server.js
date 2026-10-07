@@ -21,36 +21,73 @@ const initialProducts = [
   { name: "Classic Sunglasses", price: 31.4, category: "Accessories", image: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=80" }
 ];
 
-const db = new sqlite3.Database(DB_FILE);
+function connect() {
+  const connection = new sqlite3.Database(DB_FILE);
+  // Wait for the other connection's write lock instead of failing with SQLITE_BUSY.
+  connection.configure("busyTimeout", 5000);
+  return connection;
+}
+
+const db = connect();
+// Dedicated to withTransaction(), so statements from other requests on the
+// shared `db` connection can never land inside an open transaction.
+const txDb = connect();
 
 app.use(express.json());
 app.use(express.static(__dirname));
 
-function run(sql, params = []) {
+function run(sql, params = [], connection = db) {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function onRun(err) {
+    connection.run(sql, params, function onRun(err) {
       if (err) return reject(err);
       resolve({ id: this.lastID, changes: this.changes });
     });
   });
 }
 
-function get(sql, params = []) {
+function get(sql, params = [], connection = db) {
   return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
+    connection.get(sql, params, (err, row) => {
       if (err) return reject(err);
       resolve(row);
     });
   });
 }
 
-function all(sql, params = []) {
+function all(sql, params = [], connection = db) {
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
+    connection.all(sql, params, (err, rows) => {
       if (err) return reject(err);
       resolve(rows);
     });
   });
+}
+
+let transactionQueue = Promise.resolve();
+
+// Runs work(txDb) inside BEGIN IMMEDIATE ... COMMIT; any error rolls everything back.
+// Transactions are queued so only one is open on txDb at a time.
+function withTransaction(work) {
+  const result = transactionQueue.then(async () => {
+    await run("BEGIN IMMEDIATE", [], txDb);
+    try {
+      const value = await work(txDb);
+      await run("COMMIT", [], txDb);
+      return value;
+    } catch (error) {
+      await run("ROLLBACK", [], txDb).catch((rollbackError) => console.error("Rollback failed:", rollbackError));
+      throw error;
+    }
+  });
+  transactionQueue = result.catch(() => {});
+  return result;
+}
+
+class CheckoutError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
 }
 
 async function syncToGoogleSheets(eventType, payload) {
@@ -254,59 +291,84 @@ app.post("/api/orders", async (req, res, next) => {
       return res.status(400).json({ message: "No valid items in order." });
     }
 
-    const placeholders = ids.map(() => "?").join(",");
-    const productRows = await all(
-      `SELECT id, name, price, stock_quantity FROM products WHERE id IN (${placeholders})`,
-      ids
-    );
-    const byId = new Map(productRows.map((product) => [product.id, product]));
-
-    const enrichedItems = items
-      .map((item) => {
-        const product = byId.get(Number(item.productId));
-        const qty = Number(item.qty || 0);
-        if (!product || qty <= 0) return null;
-        const lineTotal = Number((Number(product.price) * qty).toFixed(2));
-        return {
-          productId: product.id,
-          name: product.name,
-          price: Number(product.price),
-          qty,
-          lineTotal
-        };
-      })
-      .filter(Boolean);
-
-    if (!enrichedItems.length) {
-      return res.status(400).json({ message: "No valid items in order." });
+    // Stock is deducted by qty, so a fractional qty would leave fractional stock.
+    if (items.some((item) => !Number.isInteger(Number(item.qty || 0)))) {
+      return res.status(400).json({ message: "Quantity must be a whole number." });
     }
 
-    const overStocked = enrichedItems.find((item) => item.qty > Number(byId.get(item.productId).stock_quantity));
-    if (overStocked) {
-      return res.status(400).json({ message: `Insufficient stock for ${overStocked.name}.` });
-    }
+    // Stock check, order insert, stock deduction and cart clearing commit or roll back together.
+    const order = await withTransaction(async (tx) => {
+      const placeholders = ids.map(() => "?").join(",");
+      const productRows = await all(
+        `SELECT id, name, price, stock_quantity FROM products WHERE id IN (${placeholders})`,
+        ids,
+        tx
+      );
+      const byId = new Map(productRows.map((product) => [product.id, product]));
 
-    const total = Number(enrichedItems.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2));
-    const createdAt = new Date().toISOString();
-    const inserted = await run(
-      "INSERT INTO orders (user_id, user_email, items_json, total, created_at) VALUES (?, ?, ?, ?, ?)",
-      [userId, user.email, JSON.stringify(enrichedItems), total, createdAt]
-    );
+      const enrichedItems = items
+        .map((item) => {
+          const product = byId.get(Number(item.productId));
+          const qty = Number(item.qty || 0);
+          if (!product || qty <= 0) return null;
+          const lineTotal = Number((Number(product.price) * qty).toFixed(2));
+          return {
+            productId: product.id,
+            name: product.name,
+            price: Number(product.price),
+            qty,
+            lineTotal
+          };
+        })
+        .filter(Boolean);
 
-    await run("UPDATE carts SET items_json = ?, updated_at = ? WHERE user_id = ?", [JSON.stringify([]), createdAt, userId]);
+      if (!enrichedItems.length) {
+        throw new CheckoutError(400, "No valid items in order.");
+      }
 
-    const order = {
-      id: inserted.id,
-      userId,
-      userEmail: user.email,
-      items: enrichedItems,
-      total,
-      createdAt
-    };
+      const overStocked = enrichedItems.find((item) => item.qty > Number(byId.get(item.productId).stock_quantity));
+      if (overStocked) {
+        throw new CheckoutError(400, `Insufficient stock for ${overStocked.name}.`);
+      }
+
+      const total = Number(enrichedItems.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2));
+      const createdAt = new Date().toISOString();
+      const inserted = await run(
+        "INSERT INTO orders (user_id, user_email, items_json, total, created_at) VALUES (?, ?, ?, ?, ?)",
+        [userId, user.email, JSON.stringify(enrichedItems), total, createdAt],
+        tx
+      );
+
+      for (const item of enrichedItems) {
+        // Conditional so stock never goes negative, e.g. when one product appears on several lines.
+        const deducted = await run(
+          "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND stock_quantity >= ?",
+          [item.qty, item.productId, item.qty],
+          tx
+        );
+        if (!deducted.changes) {
+          throw new CheckoutError(400, `Insufficient stock for ${item.name}.`);
+        }
+      }
+
+      await run("UPDATE carts SET items_json = ?, updated_at = ? WHERE user_id = ?", [JSON.stringify([]), createdAt, userId], tx);
+
+      return {
+        id: inserted.id,
+        userId,
+        userEmail: user.email,
+        items: enrichedItems,
+        total,
+        createdAt
+      };
+    });
 
     void syncToGoogleSheets("order_created", order);
     return res.status(201).json({ order });
   } catch (error) {
+    if (error instanceof CheckoutError) {
+      return res.status(error.status).json({ message: error.message });
+    }
     return next(error);
   }
 });

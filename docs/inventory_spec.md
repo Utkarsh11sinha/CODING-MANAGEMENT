@@ -24,10 +24,11 @@ The original request is not stored in the repository. The closest record is GitH
 | "let the admin change stock" | Does the admin set a new total or add/subtract? | Absolute value; delta | Absolute value; deltas are out of scope | Issue #1, issue #3, Functional Requirement 3 |
 | "let the admin change stock" | Can stock be set below zero? | Allow; reject | Reject with HTTP 400 | Code only (`server.js`, `PUT /api/admin/products/:id`, commit `5e38c31`) and the issue #3 closing comment; not in issue #3 |
 | "make sure stock and orders are updated correctly" | Which writes must succeed or fail together? | Order only; order + stock; order + stock + cart | Order creation, stock deduction and cart clearing in one transaction | Issue #1, issue #5 |
+| "stop customers from ordering more than available" | An order lists the same product on several lines, each within stock but together above it. Is it accepted? | Check each line alone (accept; stock goes negative after deduction); check the summed quantity (reject); merge the lines | Reject the whole order with HTTP 400 `Insufficient stock for <name>.` when the lines for a product sum to more than its stock; lines are not merged, and an accepted order keeps them as sent | Code (`server.js`, `POST /api/orders`, conditional stock deduction; Unit 4) and `tests/checkout-transaction.test.js`; decided 2026-10-07 during issue #5; not in any issue |
+| "keep track of product stock" | Can a checkout line have a fractional `qty`? Once Unit 4 deducts it, `qty: 1.5` on stock `10` leaves `8.5` (observed 2026-10-07 before this decision) | Accept as-is; round; reject | Checkout quantity is a positive integer. Any line whose `qty` is not a whole number rejects the whole order with HTTP 400 `Quantity must be a whole number.`, before any write. Lines with `qty` ≤ 0 are still dropped as before, and the order is rejected only if no valid line remains | Code (`server.js`, `POST /api/orders`) and `tests/checkout-transaction.test.js`; decided by the user on 2026-10-07 during issue #5; not in any issue |
 
 Still open (not decided anywhere in the repository):
 - **Stock for new products**: products created through `POST /api/admin/products` get the column default, `0`.
-- **Repeated order lines**: an order that lists the same product on several lines is checked line by line, not by the summed quantity.
 
 ## Functional Requirements
 
@@ -73,9 +74,9 @@ Each unit matches one GitHub issue. A fresh session should need only the issue a
 **Applies to every unit**
 - **Stack**: Express + `sqlite3` in one file, `server.js`. Install with `npm install`. Start with `npm start`; the server logs `Cartlane server running on http://localhost:<PORT>`.
 - **Database**: `data/store.db`. It is created and migrated by `initDatabase()` in `server.js` at startup.
-- **Database access**: all requests share one connection (`db`) and the promise helpers `run`, `get` and `all`. No transaction helper exists.
+- **Database access**: requests share one connection (`db`) and the promise helpers `run`, `get` and `all`, which take an optional third argument for another connection. Transactions go through `withTransaction(work)`, which runs `work(txDb)` on a second, dedicated connection inside `BEGIN IMMEDIATE … COMMIT`, rolls back on any error, and runs one transaction at a time. Both connections wait up to 5 s for a lock (`busyTimeout`). Added in Unit 4.
 - **Admin routes**: need the owner key in `x-owner-key` or `?key=`. The key comes from `OWNER_KEY` and defaults to `owner123`.
-- **Committed test**: `node --test tests/checkout-stock.test.js`. It starts a copy of `server.js` in a temp directory with its own database. Reuse that pattern for new tests.
+- **Committed tests**: `node --test tests/checkout-stock.test.js tests/checkout-transaction.test.js`. Each starts a copy of `server.js` in a temp directory with its own database. Reuse that pattern for new tests.
 - **Done means**: the issue's done condition holds, `server.js` still starts, and the committed test still passes. A unit was previously marked done while the server could not start; see `docs/claude-worklog.md`, Method Judgement.
 
 ### Unit 1: Product Stock Schema (issue #2)
@@ -109,25 +110,35 @@ Each unit matches one GitHub issue. A fresh session should need only the issue a
 - **Requirements**:
   - If any item's `qty` exceeds its `stock_quantity`, return HTTP 400 with `Insufficient stock for <product name>.`
   - This check runs before the order is inserted and before the cart is cleared, so no order or cart change happens.
-- **Verify**: `node --test tests/checkout-stock.test.js` (passes as of 2026-10-07). Ordering exactly the available stock must still return 201; this was checked manually once and has no committed test.
+- **Verify**: `node --test tests/checkout-stock.test.js` (passes as of 2026-10-07). Ordering exactly the available stock must still return 201; covered since Unit 4 by `tests/checkout-transaction.test.js`.
+- **Changed by Unit 4**: the check now runs inside the checkout transaction, still before the order insert.
 - **Out of scope**: admin stock changes, stock deduction, transactions.
 - **Status**: done in commit `8ae60ae`.
 
 ### Unit 4: Atomic Order + Stock Deduction (issue #5)
 - **Depends on**: Unit 3. Without the check, deduction subtracts any quantity, and the column has no non-negative constraint, so stock can go negative.
-- **Files**: `server.js`, `POST /api/orders`. It currently inserts the order and clears the cart as two separate `run` calls, and it does not deduct stock.
+- **Files**: `server.js`, `POST /api/orders` and the `withTransaction` helper; `tests/checkout-transaction.test.js`. Before Unit 4, the handler inserted the order and cleared the cart as two separate `run` calls and did not deduct stock.
 - **Requirements**:
   - On a successful order, reduce each product's `stock_quantity` by its ordered `qty`.
   - Order insert, stock deductions and cart clearing are one transaction; any failure rolls all of them back.
+  - Each line's `qty` must be a whole number; otherwise HTTP 400 `Quantity must be a whole number.` and nothing is written (Resolved Ambiguities). This check runs with the other payload validation, before the transaction opens.
 - **Constraints known from the code**:
   - Unit 3's check reads stock before any transaction. Concurrent orders could both pass it unless the check is made part of the transaction, or the decrement is conditional on enough stock.
   - Because every request shares one `db` connection, a `BEGIN … COMMIT` spanning awaited calls can include statements from other requests.
+- **How the implementation handles them**:
+  - The transaction runs on the dedicated `txDb` connection, so other requests' statements on `db` cannot join it or be rolled back with it.
+  - The product read and Unit 3's check run inside the transaction. `BEGIN IMMEDIATE` takes SQLite's write lock at the start, and transactions are queued in-process, so concurrent checkouts see each other's committed deductions.
+  - Each deduction is conditional (`WHERE id = ? AND stock_quantity >= ?`). If it changes no row, the order is rejected with HTTP 400 `Insufficient stock for <name>.` and everything rolls back. This also enforces the repeated-lines decision (Resolved Ambiguities).
+  - Write order inside the transaction: order insert, stock deductions, cart clear. Stock is unchanged for rejected or failed orders.
 - **Verify** (from issue #5's done condition):
   - A test showing a successful order reduces stock by the ordered amounts.
   - A test that forces a failure partway through and shows no order, unchanged stock and an unchanged cart.
   - The existing committed test still passes.
 - **Out of scope**: admin stock updates, low-stock alerts, automatic restocking, stock history, reservations, multiple warehouses.
-- **Status**: not implemented. Planned in a fresh session on 2026-10-07; see `docs/claude-worklog.md`, Fresh-Session Evidence.
+- **Status**: implemented on 2026-10-07; not yet committed. Verified with `node --test tests/checkout-stock.test.js tests/checkout-transaction.test.js`: 6/6 pass, and all five tests in `checkout-transaction.test.js` fail against the pre-Unit 4 `server.js`. See `docs/claude-worklog.md`, section 5.
+- **Known limits**:
+  - Checkouts in one server process run one at a time.
+  - A lock held longer than 5 s (e.g. by another process on the same database) makes the checkout fail with HTTP 500, with nothing written.
 
 ## Specification Lifecycle
 This specification is considered active during the implementation of the Inventory Management feature. Once the work is completed and verified, this document will be archived and superseded by the post-implementation documentation.

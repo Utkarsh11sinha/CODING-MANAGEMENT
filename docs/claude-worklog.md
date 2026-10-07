@@ -57,7 +57,40 @@ This document records the progress and decisions made during the implementation 
 **Results**:
 - The regression test was red against the pre-fix checkout (201 instead of 400) and is green after the fix.
 - Out of scope for Issue #4: decrementing stock on successful checkout within the order transaction, as required by `docs/inventory_spec.md`. That is Issue #5 (Atomic Order + Stock Deduction), which is not yet implemented.
-- Consequence until Issue #5 is done: `stock_quantity` never decreases, so repeated orders that are each within the stock limit are all accepted. Overselling is still possible, and the spec's "0% overselling" success criterion is not met.
+- Consequence until Issue #5 is done: `stock_quantity` never decreases, so repeated orders that are each within the stock limit are all accepted. Overselling is still possible, and the spec's "0% overselling" success criterion is not met. *(Issue #5 implemented on 2026-10-07; see section 5.)*
+
+### 5. Atomic Order + Stock Deduction (Issue #5)
+**Task**: Deduct stock on a successful order, and make order creation, stock deduction and cart clearing one transaction (spec, Unit 4).
+
+**Date**: 2026-10-07. **Not yet committed** at the time of writing; the commit should contain only this unit (Method Judgement, "What this suggests for the remaining work").
+
+**Changes Made**:
+- **Updated `server.js`**:
+  - Added a second connection, `txDb`, used only for transactions, and `withTransaction(work)`. It runs `BEGIN IMMEDIATE` → `work(txDb)` → `COMMIT`, and `ROLLBACK` on any error, including a failed `COMMIT`. Transactions are queued in-process so only one is open at a time.
+  - Both connections get `busyTimeout` 5000 ms, so a write waits for the other connection's lock instead of failing.
+  - `run`, `get` and `all` take an optional third argument for the connection; existing calls are unchanged.
+  - `POST /api/orders`: the product read, Unit 3's stock check, the order insert, the per-line stock deductions and the cart clear all run inside `withTransaction`. Each deduction is conditional (`... AND stock_quantity >= ?`); if it changes no row, the order is rejected with HTTP 400 `Insufficient stock for <name>.` and rolled back.
+  - `POST /api/orders`: a line whose `qty` is not a whole number rejects the order with HTTP 400 `Quantity must be a whole number.`. The check sits with the other payload validation, before the transaction (Key Design Decisions, Fractional Order Quantities).
+- **Added `tests/checkout-transaction.test.js`**, using the same temp-server pattern as `checkout-stock.test.js`:
+  1. A successful two-product order returns 201, reduces each product's stock by its `qty`, leaves other products unchanged, creates one order and empties the cart.
+  2. Rollback: a SQLite trigger added by the test aborts the cart clear, which is the last write, after the order insert and both deductions. Result: HTTP 500, no order, stock and cart unchanged. After the trigger is dropped, the same order succeeds, so the rolled-back transaction did not leave the server stuck.
+  3. Repeated lines: two lines of 6 for a product with stock 10 return 400 with nothing written; lines of 6 + 4 succeed and leave 0.
+  4. Fractional quantity: an order with a valid line and a `qty: 1.5` line returns 400 `Quantity must be a whole number.`, with no order and stock and cart unchanged.
+  5. Concurrency: with stock 5, two simultaneous orders of 3 give one 201 and one 400, and stock ends at 2; ordering exactly the remaining 2 then succeeds and leaves 0.
+
+**Verification** (2026-10-07):
+- `node --test tests/checkout-stock.test.js tests/checkout-transaction.test.js`: 6/6 pass. This also shows `server.js` starts.
+- All five tests in `checkout-transaction.test.js` were run against the pre-change `server.js` (`git show HEAD:server.js`) and fail there: stock is not deducted (10 instead of 7); an order is saved although the cart clear failed (partial write); repeated lines summing above stock return 201; a fractional `qty` returns 201; both concurrent orders return 201 (oversell).
+
+**Behavior changes beyond issue #5's text**:
+- Repeated order lines are now limited by their summed quantity (Key Design Decisions, Repeated Order Lines).
+- A checkout waits up to 5 s for a lock held by another connection, and other writes may wait while a checkout transaction is open. Previously there was only one connection, so there was no lock contention inside the process.
+- A non-checkout failure during checkout still returns HTTP 500, but nothing is written; previously the order could be saved without the cart being cleared.
+- A fractional `qty` is now rejected with HTTP 400; previously it was accepted. A non-numeric `qty` (e.g. `"abc"`) is also not a whole number, so it now gets the same 400. From reading the old code, it previously reached the order insert as `NaN` and failed with HTTP 500. This case was not tested.
+
+**Found during review and fixed**: before the whole-number check was added, checkout accepted a fractional `qty` (any `qty > 0`), and this change deducted it as-is: `qty: 1.5` on stock 10 left `stock_quantity` at `8.5` on a temp server copy. The storefront only sends whole numbers. The user decided to reject fractional quantities (Key Design Decisions, Fractional Order Quantities).
+
+**Data note**: this change adds no migration. Existing databases need none.
 
 ## Key Design Decisions
 Each decision lists only what the existing docs support. Where a part is not recorded, it says so; see Documentation Gaps.
@@ -94,7 +127,27 @@ Each decision lists only what the existing docs support. Where a part is not rec
 - **Alternatives**: Not recorded.
 - **Decision**: Perform all three in a single atomic database transaction (issues #1 and #5; added to the spec on 2026-10-07).
 - **Why**: "to ensure atomicity" (spec, API Changes) and to prevent "lost update" or "partial success" scenarios (original worklog entry).
-- **Status**: **Not yet implemented** (Issue #5).
+- **How (2026-10-07)**: a dedicated transaction connection rather than `BEGIN … COMMIT` on the shared `db`, because statements from other requests on a shared connection would join the transaction and be rolled back with it. Alternatives not taken:
+  - queueing every statement in one tick with `db.serialize()`: a failing statement does not stop the queued `COMMIT`, so a partial write would commit;
+  - a new connection per checkout: works, but adds an open/close per order, and concurrent checkouts would contend through SQLite busy waits instead of an in-process queue.
+- **Status**: Implemented on 2026-10-07, not yet committed (section 5).
+
+### Repeated Order Lines
+- **Question**: An order lists the same product on several lines, each within stock but summing above it. Is it accepted?
+- **Decision (2026-10-07, during issue #5)**: Reject the whole order with HTTP 400 `Insufficient stock for <name>.`. Lines are not merged; an accepted order keeps them as sent.
+- **Why**: once #5 deducts stock, accepting such an order would drive `stock_quantity` below zero, which oversells and breaks the No Overselling rule (spec, Functional Requirement 2). Rejection matches Whole-Order Rejection above.
+- **Alternatives**: check each line alone (accepts, then stock goes negative); merge the lines into one before checking (same outcome, but changes the stored order's lines).
+- **Enforced by**: the conditional deduction in `POST /api/orders`, not by Unit 3's per-line check. Tested in `tests/checkout-transaction.test.js`.
+- **Recorded in**: the spec's Resolved Ambiguities. It is not in any GitHub issue.
+
+### Fractional Order Quantities
+- **Question**: Can a checkout line have a non-integer `qty`?
+- **Decision (2026-10-07, by the user, during issue #5)**: No. Checkout quantity is a positive integer. A line whose `qty` is not a whole number rejects the whole order with HTTP 400 `Quantity must be a whole number.`, before any write.
+- **Why**: once #5 deducts stock by `qty`, a fractional `qty` leaves a fractional `stock_quantity` (observed: 10 → 8.5). Rejecting the whole order matches Whole-Order Rejection.
+- **Alternatives**: accept as-is (fractional stock); round (changes what the customer ordered without asking, as with capping).
+- **Scope of the check**: lines with `qty` ≤ 0 keep their existing behavior. They are dropped, and the order is rejected only if no valid line remains, so every quantity that is deducted is a positive integer. Rejecting those lines too would be a separate change.
+- **Enforced by**: `Number.isInteger` check in `POST /api/orders`. Tested in `tests/checkout-transaction.test.js`.
+- **Recorded in**: the spec's Resolved Ambiguities. It is not in any GitHub issue.
 
 ### Git Safety
 - **Question**: How should the agent be prevented from running `git push --force`?
@@ -129,7 +182,7 @@ Source: GitHub issues #1–#5. Issue #1 (Inventory Management) lists the impleme
 - [x] Implementation Unit 1: Product Stock Schema — code present; not verifiable against committed code before `8ae60ae`
 - [x] Implementation Unit 2: Admin Stock Updates — code present; not verifiable against committed code before `8ae60ae`
 - [x] Implementation Unit 3 / Issue #4: Checkout Stock Validation — commit `8ae60ae` (see section 4 above)
-- [ ] Issue #5: Atomic Order + Stock Deduction — not yet implemented; planned in a fresh session (see Fresh-Session Evidence)
+- [x] Issue #5: Atomic Order + Stock Deduction — implemented and tested 2026-10-07, not yet committed (see section 5)
 - [x] Git Guardrail Implementation — blocks `git push --force` and `git push -f` (see Key Design Decisions)
 
 ## Process Notes
@@ -234,6 +287,8 @@ Every reframe below came from implementation or from auditing it.
 | #4's check is finished work | It reads stock outside any transaction, so #5 cannot simply add a decrement after it | #4's check is treated as provisional; the constraint is written into the spec's Unit 4 | Retrospective, 2026-10-07 |
 | A ticket is done when its own behavior works | That rule let tickets close while the app could not run | "Done means" now also requires the server to start and the committed test to pass | Retrospective, 2026-10-07 |
 | The spec and the issues agree | The spec left out cart clearing and the negative-stock rule, which a fresh session following only the spec would miss | Both added to the spec | Retrospective, 2026-10-07 |
+| #4's check would need rework in #5 (expected, not yet observed) | Confirmed: the check had to move inside the transaction, and a conditional deduction was added, so concurrent orders and repeated lines cannot oversell | Implemented in #5 | When it happened: 2026-10-07, section 5 |
+| Deducting stock only adds writes to checkout | Deduction turns two previously harmless inputs into stock changes: repeated lines (would go negative) and fractional `qty` (non-integer stock) | Both decided and tested: repeated lines limited by their sum; fractional `qty` rejected | When it happened: 2026-10-07, section 5 |
 
 ## Fresh-Session Evidence
 On 2026-10-07, each of issues #2–#5 was given to its own fresh Claude session.
@@ -368,6 +423,15 @@ The fresh planning sessions above are not the sessions that implemented #2–#4.
 | 2 / #3 | Only the Boundary 1 note in Process Notes. Its timing cannot be confirmed from history. | Code present (`4ab82e5`; negative check and UI in `5e38c31`). No committed test. |
 | 3 / #4 | `docs/bug-fix.md` records the reproduction, red test and fix. Whether that session started fresh is not recorded. | `node --test tests/checkout-stock.test.js` passes (re-run 2026-10-07). |
 
+### Issue #5: Implementation Session (2026-10-07)
+- The session started with no prior conversation and was asked to implement #5 from the issue and the spec.
+- **It did not use only the issue and the spec.** Besides issue #5 (read via the GitHub API, because `gh` was not installed) and `docs/inventory_spec.md`, it read:
+  - `server.js` and `tests/checkout-stock.test.js`;
+  - the untracked `tests/regression_test_stock.js`;
+  - this worklog's #5 Fresh-Session Evidence and parts of Method Judgement.
+- So it is not evidence that #5 can be implemented from the issue and spec alone. The plan it followed (dedicated connection, check inside the transaction, conditional deduction) addresses the two constraints the spec's Unit 4 lists.
+- The repeated-lines decision and the fractional-`qty` finding came from this session. The user asked for the repeated-lines decision to be documented, and decided that fractional quantities are rejected.
+
 ## Documentation Gaps (not yet recorded)
 These are known to be missing. They need input from the people who made the decisions and are intentionally left blank rather than reconstructed:
 - **Alternatives considered at the time** for whole-order rejection, transactionality and context clearing. Retrospective alternatives are in Key Design Decisions and Process Notes.
@@ -378,5 +442,6 @@ These are known to be missing. They need input from the people who made the deci
   - No transcripts are preserved for the #2–#4 implementation sessions.
   - For the 2026-10-07 planning sessions (#2–#5), results are summarized in Fresh-Session Evidence, but the full transcripts are not stored.
 - **Open product decisions**:
-  - Already listed under "Still open" in the spec's Resolved Ambiguities: stock for new admin-created products; repeated order lines.
+  - Already listed under "Still open" in the spec's Resolved Ambiguities: stock for new admin-created products.
+  - Repeated order lines and fractional order quantities: decided on 2026-10-07 (Key Design Decisions).
   - Raised by the #3 planning session and not yet in the spec: non-numeric and decimal stock values.
