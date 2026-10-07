@@ -1,4 +1,4 @@
-# C3 Bug Evidence: Checkout Stock Validation
+# Bug Evidence: Checkout Stock Validation
 
 ## Bug
 
@@ -47,13 +47,13 @@ Added `tests/checkout-stock.test.js`, a `node:test` regression test. It starts a
 - orders product 1 with `qty = stock_quantity + 1` (stock 10, qty 11),
 - expects HTTP 400, no new order, and unchanged `stock_quantity`.
 
-Against the committed `server.js`, the test failed because the server exited before listening (the syntax error above). That is not a valid red for C3. To confirm the test catches the real bug, it was also run against a throwaway copy of `server.js` with only the duplicate `countRow` renamed. That run gave the expected red:
+Against the committed `server.js`, the test failed because the server exited before listening (the syntax error above). That is not a valid red for the checkout bug. To confirm the test catches the real bug, it was also run against a throwaway copy of `server.js` with only the duplicate `countRow` renamed. That run gave the expected red:
 
     AssertionError: expected 400 for qty > stock, got 201: {"order":{"id":1, ... "qty":11, "lineTotal":879.89}],"total":879.89, ...}}
 
 ## Fix
 
-Committed in `8ae60ae` ("Reject checkout when quantity exceeds stock (C3)"):
+Committed in `8ae60ae` ("Reject checkout when quantity exceeds stock"):
 
 - Removed the duplicated block in `initDatabase` so the server starts. The remaining seed sets `stock_quantity = 10`.
 - `POST /api/orders` now selects `stock_quantity`. If any item's `qty` is greater than its stock, the whole order is rejected with HTTP 400 and `"Insufficient stock for <product name>."`. The check runs before the order is inserted and before the cart is cleared.
@@ -89,7 +89,7 @@ Stock was present and correct. Checkout just never read it.
 - **Not code structure.** The fix was one extra column in an existing `SELECT` and one comparison inside the existing handler. The structural limits in the code (one shared `db` connection, no transaction helper) affect Unit 4's atomic deduction, not this bug.
 - **Test.** Nothing ran checkout against stock, and nothing even loaded `server.js`, which is how a syntax error reached a commit unnoticed. `tests/checkout-stock.test.js` covers both. It boots `server.js`, so a startup failure fails the test, and it checks that `qty > stock` returns 400 with no order and unchanged stock.
 
-## Remaining Work (outside this fix)
+## Remaining Work
 
 - A successful checkout does not decrement `stock_quantity`. `docs/inventory_spec.md` requires the decrement to happen in the same transaction as order creation. That is not implemented yet.
 - `tests/regression_test_stock.js` (the earlier manual check, untracked) still targets a running server on port 3000 and writes to `data/store.db`. `tests/checkout-stock.test.js` replaces it.
