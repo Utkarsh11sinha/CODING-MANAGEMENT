@@ -69,6 +69,26 @@ Committed in `8ae60ae` ("Reject checkout when quantity exceeds stock (C3)"):
 
 A one-off manual check (not committed) confirmed that ordering exactly the available stock (`qty = 10`) still returns HTTP 201.
 
+## Alternative Cause Ruled Out
+
+**Hypothesis:** the bug was in the stock data, not in checkout. If products had no usable `stock_quantity` (the column missing, the backfill failing, or the duplicated stock-less seed leaving stock at `0`), the fix would belong in `initDatabase`, not in `POST /api/orders`.
+
+**Evidence against it:**
+
+- The pre-fix `server.js` (`git show 8ae60ae^:server.js`) already created the column, `stock_quantity INTEGER NOT NULL DEFAULT 0`, plus an `ALTER TABLE` and a backfill to `10` for existing databases. It also seeded products with `stock_quantity`, and `GET /api/admin/overview` already selected it.
+- The red run used a copy of that `server.js` with only `countRow` renamed, so it still contained the duplicated block. Before ordering, the test read the product's stock from `GET /api/admin/overview` and asserted it was greater than `0`. The test got past that assertion and only failed on the status check. The response shows `qty` `11` (stock + 1), so stock was `10` when checkout accepted the order.
+- In `8ae60ae`, the only `POST /api/orders` changes were adding `stock_quantity` to the `SELECT` and adding the comparison. The only `initDatabase` changes were the `countRow` fix and removing the duplicated block. With the handler change in place, the same test went green.
+
+Stock was present and correct. Checkout just never read it.
+
+## Where the Finding Belongs
+
+**Test.** The missing safeguard was a test:
+
+- **Not the spec.** `docs/inventory_spec.md` already required this: Functional Requirement 2 rejects the whole order, Technical Requirement 2 adds a validation step to `POST /api/orders`, and Error Handling requires HTTP 400. The spec was correct and did not need to change.
+- **Not code structure.** The fix was one extra column in an existing `SELECT` and one comparison inside the existing handler. The structural limits in the code (one shared `db` connection, no transaction helper) affect Unit 4's atomic deduction, not this bug.
+- **Test.** Nothing ran checkout against stock, and nothing even loaded `server.js`, which is how a syntax error reached a commit unnoticed. `tests/checkout-stock.test.js` covers both. It boots `server.js`, so a startup failure fails the test, and it checks that `qty > stock` returns 400 with no order and unchanged stock.
+
 ## Remaining Work (outside this fix)
 
 - A successful checkout does not decrement `stock_quantity`. `docs/inventory_spec.md` requires the decrement to happen in the same transaction as order creation. That is not implemented yet.
