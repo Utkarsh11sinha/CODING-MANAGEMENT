@@ -15,9 +15,10 @@ input=$(cat)
 command=$(echo "$input" | sed -n 's/.*"command"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
 if [ -n "$command" ]; then
-    # Matches --force (including --force-with-lease), -f, or a +refspec (e.g. +main) after "push", within one command segment
-    if echo "$command" | grep -Eq 'push[^;&|]*[[:space:]](--force|-f([[:space:]]|$)|\+[^[:space:]])'; then
-        echo "ERROR: [Agent Control] The command '$command' is blocked by the enforcement hook. Do not use force pushes." >&2
+    # Matches --force (including --force-with-lease), -f, a +refspec (e.g. +main), --mirror,
+    # --delete, -d, or a :refspec deletion (e.g. :main) after "push", within one command segment
+    if echo "$command" | grep -Eq 'push[^;&|]*[[:space:]](--force|--mirror|--delete|-[fd]([[:space:]]|$)|[+:][^[:space:]])'; then
+        echo "ERROR: [Agent Control] The command '$command' is blocked by the enforcement hook. Do not use force, mirror, or delete pushes." >&2
         exit 2
     fi
 fi

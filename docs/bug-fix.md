@@ -71,7 +71,9 @@ A one-off manual check (not committed) confirmed that ordering exactly the avail
 
 ## Alternative Cause Ruled Out
 
-**Hypothesis:** the bug was in the stock data, not in checkout. If products had no usable `stock_quantity` (the column missing, the backfill failing, or the duplicated stock-less seed leaving stock at `0`), the fix would belong in `initDatabase`, not in `POST /api/orders`.
+**No alternative cause was recorded during the diagnosis.** The only hypothesis written down before the fix was the one in Red Check: that checkout was already enforcing the stock limit. Nothing in this file's history or in `docs/claude-worklog.md` records another cause being considered before the fix in `8ae60ae` (2026-10-06).
+
+**Retrospective check (written 2026-10-07, after the fix, against the existing evidence):** could the bug have been in the stock data rather than in checkout? If products had no usable `stock_quantity` (the column missing, the backfill failing, or the duplicated stock-less seed leaving stock at `0`), the fix would belong in `initDatabase`, not in `POST /api/orders`.
 
 **Evidence against it:**
 
